@@ -4,6 +4,8 @@ Escola de xadrez para treinar **sozinho**, sem depender de outros jogadores: aul
 
 Tudo roda no navegador, sem servidor nem dependências. O progresso fica salvo no `localStorage`.
 
+Também inclui uma **extensão de navegador** que adiciona uma revisão de partidas gratuita e ilimitada às partidas terminadas no chess.com, com classificação de lances (brilhante, melhor, imprecisão, capivarada…) usando o Stockfish localmente. Veja [`extension/README.md`](extension/README.md).
+
 ## Funcionalidades
 
 | Seção | O que faz |
