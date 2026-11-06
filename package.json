@@ -1,0 +1,11 @@
+{
+  "name": "lance-certo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Escola de xadrez offline: aulas, problemas, desafios e treino contra o computador.",
+  "scripts": {
+    "test": "node tests/run.mjs",
+    "start": "python3 -m http.server 8080"
+  }
+}
