@@ -1,10 +1,9 @@
-// Testes da extensão: PGN, aberturas, classificação e sincronia de extension/lib.
-import { readFileSync } from 'node:fs';
-import { Chess } from '../js/chess.js';
-import { Searcher, MATE } from '../js/engine.js';
-import { parsePgn } from '../extension/pgn.js';
-import { OPENINGS, identifyOpening } from '../extension/openings.js';
-import { classify, summarize, isSacrifice, winPercent, scoreText } from '../extension/analysis.js';
+// Testes da extensão: PGN, aberturas e classificação de lances.
+import { Chess } from '../lib/chess.js';
+import { Searcher, MATE } from '../lib/engine.js';
+import { parsePgn } from '../pgn.js';
+import { OPENINGS, identifyOpening } from '../openings.js';
+import { classify, summarize, isSacrifice, winPercent, scoreText } from '../analysis.js';
 
 const SAMPLE = `[Event "Live Chess"]
 [Site "Chess.com"]
@@ -27,11 +26,6 @@ function evalFen(fen) {
 function toUci(m) { const f = 'abcdefgh'; const n = (i) => f[i & 7] + (8 - (i >> 3)); return n(m.from) + n(m.to) + (m.promotion || ''); }
 
 export function runExtension(assert) {
-  for (const f of ['chess.js', 'board.js', 'engine.js']) {
-    assert(readFileSync(new URL('../js/' + f, import.meta.url), 'utf8') === readFileSync(new URL('../extension/lib/' + f, import.meta.url), 'utf8'), `extension/lib/${f} desatualizado (rode node tools/build-extension.mjs)`);
-  }
-  assert(readFileSync(new URL('../css/style.css', import.meta.url), 'utf8') === readFileSync(new URL('../extension/lib/base.css', import.meta.url), 'utf8'), 'extension/lib/base.css desatualizado');
-
   // Aberturas: todas as linhas são legais
   for (const o of OPENINGS) {
     const c = new Chess();
@@ -62,3 +56,8 @@ export function runExtension(assert) {
   assert(winPercent({ mate: 3 }) === 100 && winPercent({ mate: 0 }) === 0 && Math.abs(winPercent({ cp: 0 }) - 50) < 1e-9, 'win%');
   assert(scoreText({ cp: 150 }, 'b') === '-1.5' && scoreText({ mate: 2 }, 'w') === 'M2', 'texto da avaliação');
 }
+
+let fails = 0, passes = 0;
+runExtension((cond, msg) => { if (cond) passes++; else { fails++; console.error('FALHOU:', msg); } });
+console.log(`${passes} verificações, ${fails} falhas`);
+process.exit(fails ? 1 : 0);

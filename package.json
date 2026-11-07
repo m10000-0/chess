@@ -1,11 +1,10 @@
 {
-  "name": "lance-certo",
+  "name": "lance-certo-revisao",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Escola de xadrez offline: aulas, problemas, desafios e treino contra o computador.",
+  "description": "Extensão de navegador: revisão ilimitada de partidas do chess.com com Stockfish local.",
   "scripts": {
-    "test": "node tests/run.mjs",
-    "start": "python3 -m http.server 8080"
+    "test": "node tests/extension.mjs"
   }
 }

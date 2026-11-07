@@ -1,63 +1,61 @@
-# Lance Certo ♞
+# Extensão: Revisão Lance Certo
 
-Escola de xadrez para treinar **sozinho**, sem depender de outros jogadores: aulas interativas, problemas táticos, desafios contra o relógio, treino de coordenadas e partidas contra o computador.
+Adiciona um botão **"♞ Revisão Lance Certo"** logo acima do botão de revisão nas partidas **terminadas** do chess.com. O botão herda o estilo da página. Ao clicar, abre um painel por cima da página com a revisão completa:
 
-Tudo roda no navegador, sem servidor nem dependências. O progresso fica salvo no `localStorage`.
+- classificação de cada lance: **Brilhante, Ótimo, Melhor, Excelente, Bom, Teoria, Forçado, Imprecisão, Erro, Oportunidade perdida e Capivarada**;
+- precisão de cada jogador, contagem por categoria e gráfico de avaliação clicável;
+- tabuleiro com barra de avaliação, ícone da classificação na casa do lance e seta com o melhor lance;
+- explicação de cada lance ("O melhor era…", "Havia mate em 2"), nome da abertura e botão "Próximo erro";
+- navegação pelas setas do teclado; **Esc** fecha o painel.
 
-Também inclui uma **extensão de navegador** que adiciona uma revisão de partidas gratuita e ilimitada às partidas terminadas no chess.com, com classificação de lances (brilhante, melhor, imprecisão, capivarada…) usando o Stockfish localmente. Veja [`extension/README.md`](extension/README.md).
+A análise roda **no seu navegador** com o Stockfish 18 (WASM), sem limite de revisões e sem enviar nada a servidores. Se o Stockfish não carregar, a extensão usa automaticamente o motor interno do Lance Certo, que é mais fraco.
 
-## Funcionalidades
+## Instalar (Chrome, Edge, Brave ou Opera)
 
-| Seção | O que faz |
+1. Baixe o repositório (**Code → Download ZIP**) e descompacte.
+2. Abra `chrome://extensions` e ative o **Modo do desenvolvedor**.
+3. Clique em **Carregar sem compactação** e escolha a pasta descompactada (a que contém o `manifest.json`).
+4. Abra uma partida terminada no chess.com e clique em **♞ Revisão Lance Certo**.
+
+O ícone da extensão na barra do navegador abre a revisão numa aba, onde você pode colar um PGN ou revisar sua última partida pelo nome de usuário.
+
+## Como a partida é obtida
+
+A extensão lê o número da partida na URL (ou nos links da página) e busca o PGN pela **API pública** do chess.com (`api.chess.com/pub/player/<usuário>/games/...`), usando os nomes dos jogadores mostrados na página ou o usuário salvo nas configurações. Partidas recém-terminadas podem levar alguns minutos para aparecer na API. Nesse caso, cole o PGN (Compartilhar → PGN).
+
+A revisão **só funciona para partidas terminadas**: PGNs sem resultado são recusados, para que a extensão não sirva de ajuda durante uma partida.
+
+## Como os lances são classificados
+
+Para cada posição, o motor calcula a avaliação, o melhor lance e o segundo melhor (MultiPV 2). A avaliação vira **chance de vitória** (0–100%), e a perda de cada lance é a queda nessa chance:
+
+| Perda | Classificação |
 | --- | --- |
-| **Aulas** | 5 cursos e 27 aulas interativas: regras e movimento das peças (com estrelas a coletar), xeque e mate, roque, en passant, táticas (garfo, cravada, espeto, ataque descoberto, xeque duplo), padrões de mate, princípios de abertura e finais de peões. Algumas etapas são jogadas contra o computador (ex.: dar mate com torre e rei). |
-| **Problemas** | Problemas com solução verificada por busca exaustiva, rating Elo pessoal, filtro por tema, dicas, "ver solução" e gráfico de evolução. |
-| **Contra o relógio** | Resolva problemas de dificuldade crescente em 3 ou 5 minutos (ou no modo sobrevivência). Três erros encerram a rodada. |
-| **Coordenadas** | 30 segundos para clicar no maior número de casas pedidas, jogando de brancas ou de pretas. |
-| **Computador** | Seis níveis (≈400 a ≈1900), escolha de cor, posição inicial via FEN, dicas, barra de avaliação, voltar lances e exportação em PGN. A partida em andamento é salva. |
+| lance do motor | Melhor |
+| ≤ 2 | Excelente |
+| ≤ 5 | Bom |
+| ≤ 10 | Imprecisão |
+| ≤ 20 | Erro |
+| > 20 | Capivarada |
 
-## Como rodar
+Casos especiais:
 
-Por usar módulos ES e Web Workers, o site precisa ser servido por HTTP (não abre via `file://`):
+- **Brilhante**: um dos melhores lances que entrega material (o adversário pode capturar e ganhar 2 peões ou mais) e mantém a posição boa.
+- **Ótimo**: o melhor lance, com o segundo melhor bem pior (praticamente o único lance bom).
+- **Oportunidade perdida**: o adversário errou e você não aproveitou.
+- **Teoria**: lances que seguem linhas conhecidas de abertura.
+- **Forçado**: só havia um lance legal.
 
-```bash
-npm start   # equivale a: python3 -m http.server 8080
-```
+A precisão usa a fórmula de "precisão por chance de vitória" popularizada pelo Lichess.
 
-Depois acesse <http://localhost:8080>.
+## Licenças
 
-Para publicar, basta servir a pasta como site estático (por exemplo, GitHub Pages apontando para a raiz do branch principal).
+O Stockfish (pasta `stockfish/`) é software livre sob a **GPL v3** (veja `stockfish/COPYING.txt`). Versão WASM de [stockfish.js](https://github.com/nmrugg/stockfish.js), pacote npm `stockfish@18.0.8`. Esta extensão não é afiliada ao chess.com.
 
-## Estrutura
+## Desenvolvimento
 
-```
-index.html
-css/style.css
-js/
-  chess.js          regras do xadrez: geração de lances, SAN, FEN, fim de jogo
-  engine.js         motor (alfa-beta, quiescência, tabelas posicionais) e níveis
-  engine-worker.js  executa o motor fora da thread principal
-  solver.js         resolvedor de mate forçado (valida problemas)
-  board.js          tabuleiro interativo (clique/arraste, promoção, setas, estrelas)
-  views/            telas: início, aulas, problemas, contra o relógio, coordenadas, computador
-  data/lessons.js   conteúdo das aulas
-  data/puzzles.js   problemas gerados
-tools/gen-puzzles.mjs  gerador de problemas
-tests/              perft, regras e validação de todo o conteúdo
-```
-
-## Testes
+`lib/` contém o motor de regras (`chess.js`), o tabuleiro (`board.js`), o motor interno (`engine.js`) e os estilos base. Para rodar os testes (leitura de PGN, aberturas e classificação de lances):
 
 ```bash
 npm test
 ```
-
-Verifica a geração de lances com contagens *perft* de referência e regras especiais (roque, en passant, promoção, afogamento, repetição). Também valida **todo o conteúdo**: posições legais, soluções das aulas, estrelas alcançáveis e, nos problemas, que a solução é legal, termina em mate quando deveria e tem primeiro lance único.
-
-## Gerando novos problemas
-
-```bash
-node tools/gen-puzzles.mjs 600 12345   # nº de partidas, semente
-```
-
-O gerador faz o motor jogar partidas com erros propositais e procura posições com mate forçado (em 1, 2 ou 3 lances, com solução única) ou com um golpe tático que ganha material com margem clara. Cada problema começa com o último lance do adversário, como numa partida real.
