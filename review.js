@@ -73,7 +73,7 @@ if (inFrame) {
   window.addEventListener('message', (e) => { if (e.data && e.data.type === 'lc-layout') applyLayout(e.data.layout); });
 }
 
-const DEFAULTS = { username: '', depth: 16, engine: 'stockfish', pieceSet: 'staunty' };
+const DEFAULTS = { username: '', depth: 16, engine: 'stockfish', pieceSet: 'gioco' };
 const storage = {
   async get() {
     try {

@@ -58,9 +58,12 @@ Conjuntos de peças (pasta `pieces/`, escolha nas configurações):
 
 | Conjunto | Autor | Licença |
 | --- | --- | --- |
-| staunty (padrão), maestro, cardinal | sadsnake1 | CC BY-NC-SA 4.0 (uso não comercial) |
+| gioco (padrão), staunty, tatiana, dubrovny, maestro, cardinal | sadsnake1 | CC BY-NC-SA 4.0 (uso não comercial) |
+| caliente | [avi](https://github.com/avi-0/caliente) | CC BY-NC-SA 4.0 (uso não comercial) |
 | merida | Armando Hernandez Marroquin | GPLv2+ |
 | cburnett | Colin M.L. Burnett | GPLv2+ |
+
+O conjunto Neo do chess.com não está incluído porque é propriedade do chess.com (veja lichess-org/lila#3411). O gioco é o conjunto livre mais próximo dele.
 
 Por causa da licença CC BY-NC-SA de alguns conjuntos, esta extensão é distribuída gratuitamente e não pode ser vendida.
 
