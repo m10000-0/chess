@@ -1,6 +1,6 @@
 // Tela de revisão: busca a partida, roda o motor em cada posição, classifica os lances e mostra tudo.
 import { Chess, START_FEN } from './lib/chess.js';
-import { Board } from './lib/board.js';
+import { Board, setPieceSet, getPieceSet, pieceUrl, PIECE_SETS } from './lib/board.js';
 import { parsePgn } from './pgn.js';
 import { identifyOpening } from './openings.js';
 import { CLASSES, CLASS_ORDER, classify, summarize, scoreText, whiteWin } from './analysis.js';
@@ -32,7 +32,27 @@ function toast(msg, ms = 2600) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), ms);
 }
-const badge = (cls, small = false) => h('span', { class: 'badge' + (small ? ' small' : ''), style: `background:${CLASSES[cls].color}`, title: CLASSES[cls].label }, CLASSES[cls].sym);
+// Ícones de classificação desenhados em SVG (nítidos em qualquer tamanho)
+const S = 'fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"';
+const EXCL = (x) => `<path d="M${x} 5.2v6.4" ${S} stroke-width="2.6"/><circle cx="${x}" cy="15.2" r="1.45" fill="#fff"/>`;
+const QUES = (x) => `<path d="M${x - 2.6} 7.4a2.7 2.7 0 1 1 3.9 2.4c-.9.5-1.3 1-1.3 1.9v.6" ${S} stroke-width="2.3"/><circle cx="${x}" cy="15.4" r="1.4" fill="#fff"/>`;
+const ICONS = {
+  brilliant: EXCL(7.2) + EXCL(12.8),
+  great: EXCL(10),
+  best: '<path d="M10 3.6l1.95 4.1 4.45.55-3.28 3.08.84 4.42L10 13.6l-3.96 2.15.84-4.42L3.6 8.25l4.45-.55z" fill="#fff"/>',
+  excellent: `<path d="M5.6 10.4l3 3 5.8-6.4" ${S} stroke-width="2.6"/>`,
+  good: `<path d="M5.6 10.4l3 3 5.8-6.4" ${S} stroke-width="2.6"/>`,
+  book: `<path d="M10 6.2c-1.6-1.2-3.6-1.5-5.6-1.2v9.4c2-.3 4 0 5.6 1.2 1.6-1.2 3.6-1.5 5.6-1.2V5c-2-.3-4 0-5.6 1.2zM10 6.2v9.2" ${S} stroke-width="1.7"/>`,
+  forced: `<path d="M5 10h9.2M10.6 6.2l3.8 3.8-3.8 3.8" ${S} stroke-width="2.4"/>`,
+  inaccuracy: QUES(7.4) + EXCL(14.2),
+  mistake: QUES(10),
+  miss: `<path d="M6.4 6.4l7.2 7.2M13.6 6.4l-7.2 7.2" ${S} stroke-width="2.6"/>`,
+  blunder: QUES(6.8) + QUES(13.4),
+};
+const badge = (cls, small = false) => h('span', {
+  class: 'badge' + (small ? ' small' : ''), title: CLASSES[cls].label,
+  html: `<svg viewBox="0 0 20 20" width="100%" height="100%"><circle cx="10" cy="10" r="10" fill="${CLASSES[cls].color}"/>${ICONS[cls] || ''}</svg>`,
+});
 
 // Papel deste iframe: 'board' (overlay sobre o tabuleiro), 'side' (overlay sobre a coluna) ou nenhum (aba própria)
 const role = info.role || null;
@@ -53,7 +73,7 @@ if (inFrame) {
   window.addEventListener('message', (e) => { if (e.data && e.data.type === 'lc-layout') applyLayout(e.data.layout); });
 }
 
-const DEFAULTS = { username: '', depth: 14, engine: 'stockfish' };
+const DEFAULTS = { username: '', depth: 16, engine: 'stockfish', pieceSet: 'staunty' };
 const storage = {
   async get() {
     try {
@@ -166,6 +186,7 @@ class BoardDisplay {
   // st: { fen, last: {from,to}|null, arrows, badge: {to, cls}|null, evalPct, evalText, orientation }
   show(st) {
     const b = this.board;
+    if (st.pieceSet && st.pieceSet !== getPieceSet()) { setPieceSet(st.pieceSet); b.repaint(); }
     if (st.orientation && b.opts.orientation !== st.orientation) b.setOrientation(st.orientation);
     const c = new Chess(st.fen);
     b.setPosition(c, { lastMove: st.last, check: c.inCheck() ? c.kingSquare(c.turn) : null });
@@ -229,9 +250,13 @@ class Review {
     this.results = [];
     this.cur = this.plies.length;
     this.showBest = true;
-    // Orienta pelo usuário salvo, se ele jogou de pretas
-    const u = (settings.username || '').toLowerCase();
-    this.orientation = u && this.black.name.toLowerCase() === u ? 'b' : 'w';
+    setPieceSet(settings.pieceSet);
+    // Lado do jogador: como o site mostrava o tabuleiro; senão, pelo usuário salvo
+    const u = (info.me || settings.username || '').toLowerCase();
+    if (u && this.black.name.toLowerCase() === u) this.orientation = 'b';
+    else if (u && this.white.name.toLowerCase() === u) this.orientation = 'w';
+    else this.orientation = info.orientation === 'b' ? 'b' : 'w';
+    this.ratings = { w: parseInt(this.white.elo, 10) || null, b: parseInt(this.black.elo, 10) || null };
     this.build();
   }
 
@@ -253,6 +278,8 @@ class Review {
       [[10, 'Rápida (10)'], [14, 'Normal (14)'], [18, 'Profunda (18)'], [22, 'Máxima (22)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.depth }, l)));
     const engineSel = h('select', { onchange: async (e) => { await storage.set({ engine: e.target.value }); toast('Motor salvo. Clique em "Reanalisar".'); } },
       [['stockfish', 'Stockfish 18'], ['builtin', 'Motor Lance Certo (mais fraco)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.engine }, l)));
+    const setSel = h('select', { onchange: async (e) => { await storage.set({ pieceSet: e.target.value }); setPieceSet(e.target.value); if (this.display.board) this.display.board.repaint(); this.render(); } },
+      PIECE_SETS.map((v) => h('option', { value: v, selected: v === getPieceSet() }, v)));
     const userInp = h('input', { type: 'text', value: this.settings.username, placeholder: 'seu usuário', style: 'width:150px' });
     userInp.addEventListener('change', () => storage.set({ username: userInp.value.trim() }));
 
@@ -270,6 +297,7 @@ class Review {
       h('div', { class: 'settings' },
         h('label', {}, 'Profundidade', depthSel),
         h('label', {}, 'Motor', engineSel),
+        h('label', {}, 'Peças', setSel),
         h('label', {}, 'Seu usuário', userInp),
         h('label', {}, 'Mostrar melhor lance', h('input', { type: 'checkbox', checked: this.showBest, onchange: (e) => { this.showBest = e.target.checked; this.render(); } })),
         h('button', { class: 'btn', onclick: async () => { this.cancel(); const s = await storage.get(); const r = new Review(this.game, { white: { username: this.white.name, rating: this.white.elo }, black: { username: this.black.name, rating: this.black.elo } }, s); current = r; r.run(); } }, '↺ Reanalisar'),
@@ -340,7 +368,7 @@ class Review {
       else ev = await engine.analyse(this.fens[i]);
       if (this.cancelled) return;
       this.evals[i] = ev;
-      this.results = classify(this.plies, this.evals, { bookPlies: this.bookPlies });
+      this.results = classify(this.plies, this.evals, { bookPlies: this.bookPlies, ratings: this.ratings });
       this.progressText = `Analisando com ${engine.name}… ${i + 1}/${N + 1}`;
       this.progressPct = ((i + 1) / (N + 1)) * 100;
       this.render();
@@ -490,7 +518,7 @@ class Review {
       if (!p) return h('span', { class: 'm2' });
       const r = this.results[i];
       const notable = r && NOTABLE.includes(r.cls);
-      const piece = /^[KQRBN]/.test(p.san) ? h('img', { class: 'fig ' + p.color, src: `pieces/${p.color}${p.san[0]}.svg`, alt: '' }) : null;
+      const piece = /^[KQRBN]/.test(p.san) ? h('img', { class: 'fig', src: pieceUrl(p.san[0]), alt: '' }) : null;
       return h('span', { class: 'm2' + (this.cur === i + 1 ? ' cur' : ''), onclick: () => this.go(i + 1), style: notable && r.cls !== 'book' ? `color:${CLASSES[r.cls].color}` : null },
         h('span', { class: 'bslot' }, notable ? badge(r.cls, true) : null), piece, piece ? p.san.slice(1) : p.san);
     };
@@ -529,6 +557,7 @@ class Review {
       evalPct: ev ? whiteWin(ev.score, turn) : 50,
       evalText: ev ? scoreText(ev.score, turn).replace(/^\+/, '') : '',
       orientation: this.orientation,
+      pieceSet: getPieceSet(),
     };
   }
 
@@ -699,6 +728,7 @@ if (role === 'side' && channel) {
 (async () => {
   if (role === 'board' && channel) { startBoardRole(); return; }
   const s = await storage.get();
+  if (!s.username && info.me) { s.username = info.me; storage.set({ username: info.me }); }
   if (info.pgn) { start(info.pgn, {}); return; }
   if (!info.id && !s.username) { formScreen(info.url ? 'Não identifiquei a partida nesta página. Informe seu usuário para revisar sua última partida, ou cole o PGN.' : ''); return; }
   loadingScreen('Buscando a partida no chess.com…');

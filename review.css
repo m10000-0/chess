@@ -177,7 +177,6 @@ body.role-side { --col-bg: #262421; --col-2: #1f1e1b; --col-3: #3a3835; --col-li
 .m2.cur { background: #4b4844; outline: 1px solid #77736c; }
 .m2 .bslot { width: 20px; display: inline-flex; justify-content: center; }
 .m2 .fig { width: 20px; height: 20px; margin-right: 1px; }
-.m2 .fig.b { filter: invert(0.82) drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.6)); }
 .col-summary { padding: 14px 16px; }
 .col-summary .summary { gap: 8px 10px; }
 body.role-side .settings label { color: #ece9e4; }
@@ -191,3 +190,10 @@ body.role-side .card { background: transparent; border: 0; box-shadow: none; pad
 .col-foot { display: flex; justify-content: space-around; padding: 6px 10px 12px; }
 .fb { border: 0; background: transparent; color: #c9c6c0; font-weight: 700; font-size: 13.5px; cursor: pointer; padding: 6px 8px; border-radius: 6px; }
 .fb:hover { background: var(--col-3); color: #fff; }
+
+/* Nitidez: sem camadas rasterizadas nas peças; ícones em SVG */
+.piece { will-change: auto; image-rendering: auto; }
+.badge { background: none !important; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35); border-radius: 50%; display: inline-block; }
+.badge svg { display: block; }
+.board-badge .badge { border: 0; width: 44%; height: 44%; right: -10%; top: -10%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
+.m2 .fig { width: 21px; height: 21px; }

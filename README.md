@@ -46,11 +46,23 @@ Casos especiais:
 - **Teoria**: lances que seguem linhas conhecidas de abertura.
 - **Forçado**: só havia um lance legal.
 
-A precisão usa a fórmula de "precisão por chance de vitória" popularizada pelo Lichess.
+As faixas acima são as mesmas que o chess.com publica para o seu modelo de "pontos esperados" (0,02 / 0,05 / 0,10 / 0,20). Como lá, a chance de vitória depende do **rating** de quem jogou: para ratings mais baixos, a mesma vantagem em peões vale menos certeza de vitória. A fórmula exata do chess.com não é pública, então este ajuste é uma aproximação, e a classificação pode diferir em alguns lances. A profundidade padrão do Stockfish é 16, e pode chegar a 22 nas configurações.
+
+A precisão usa a fórmula de "precisão por chance de vitória" popularizada pelo Lichess. A do chess.com (CAPS2) também não é pública.
+
+A revisão abre do lado em que você jogou: a extensão usa a orientação do tabuleiro no site e o nome do jogador da barra de baixo.
 
 ## Licenças
 
-As peças (pasta `pieces/`) são o conjunto **cburnett**, de Colin M.L. Burnett, sob licença GPLv2+ (o mesmo usado pelo Lichess e pela Wikipédia).
+Conjuntos de peças (pasta `pieces/`, escolha nas configurações):
+
+| Conjunto | Autor | Licença |
+| --- | --- | --- |
+| staunty (padrão), maestro, cardinal | sadsnake1 | CC BY-NC-SA 4.0 (uso não comercial) |
+| merida | Armando Hernandez Marroquin | GPLv2+ |
+| cburnett | Colin M.L. Burnett | GPLv2+ |
+
+Por causa da licença CC BY-NC-SA de alguns conjuntos, esta extensão é distribuída gratuitamente e não pode ser vendida.
 
 O Stockfish (pasta `stockfish/`) é software livre sob a **GPL v3** (veja `stockfish/COPYING.txt`). Versão WASM de [stockfish.js](https://github.com/nmrugg/stockfish.js), pacote npm `stockfish@18.0.8`. Esta extensão não é afiliada ao chess.com.
 

@@ -19,10 +19,16 @@ export const CLASS_ORDER = ['brilliant', 'great', 'best', 'excellent', 'good', '
 
 const VAL = { p: 100, n: 300, b: 310, r: 500, q: 900, k: 20000 };
 
-export function winPercent(score) {
+// Chance de vitória (0–100). Com rating, a curva fica mais "achatada" para jogadores de rating
+// mais baixo (uma vantagem vale menos certeza), como no modelo de "pontos esperados".
+export function ratingFactor(rating) {
+  if (!rating) return 1;
+  return Math.max(0.65, Math.min(1.25, 0.45 + rating / 2600));
+}
+export function winPercent(score, rating = null) {
   if (!score) return 50;
   if (score.mate != null) return score.mate > 0 ? 100 : 0;
-  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * score.cp)) - 1);
+  return 50 + 50 * (2 / (1 + Math.exp(-0.00368208 * ratingFactor(rating) * score.cp)) - 1);
 }
 
 export function moveAccuracy(loss) {
@@ -68,14 +74,15 @@ export function isSacrifice(fen, uci) {
 }
 
 // plies: [{ uci, san, fenBefore, legalCount, color }]; evals: avaliação de cada posição (0..N) com { score, best, second }
-export function classify(plies, evals, { bookPlies = 0 } = {}) {
+export function classify(plies, evals, { bookPlies = 0, ratings = {} } = {}) {
   const out = [];
   for (let i = 0; i < plies.length; i++) {
     const before = evals[i], after = evals[i + 1];
     if (!before || !after) { out.push(null); continue; }
     const p = plies[i];
-    const bestWin = winPercent(before.score);
-    const afterWin = 100 - winPercent(after.score);
+    const rt = ratings[p.color] || null;
+    const bestWin = winPercent(before.score, rt);
+    const afterWin = 100 - winPercent(after.score, rt);
     const isBest = before.best === p.uci;
     let loss = isBest ? 0 : Math.max(0, bestWin - afterWin);
     let cls;
@@ -83,7 +90,7 @@ export function classify(plies, evals, { bookPlies = 0 } = {}) {
     if (p.legalCount === 1) cls = 'forced';
     else if (i < bookPlies && loss < 6) cls = 'book';
     else if (isBest || loss <= 1) {
-      const secondWin = before.second ? winPercent(before.second) : null;
+      const secondWin = before.second ? winPercent(before.second, rt) : null;
       if (loss <= 2 && afterWin >= 45 && isSacrifice(p.fenBefore, p.uci)) cls = 'brilliant';
       else if (isBest && !(after.score.mate === 0) && secondWin != null && bestWin - secondWin >= 18 && afterWin >= 35 && !(plies[i - 1] && plies[i - 1].uci.slice(2, 4) === p.uci.slice(2, 4))) cls = 'great';
       else cls = isBest ? 'best' : 'excellent';

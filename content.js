@@ -20,7 +20,20 @@
     const add = (name) => { name = (name || '').trim().toLowerCase(); if (/^[a-z0-9_-]{3,25}$/.test(name) && !users.includes(name)) users.push(name); };
     document.querySelectorAll('[data-test-element="user-tagline-username"], .user-tagline-username, .cc-user-username-component').forEach((el) => add(el.textContent));
     document.querySelectorAll('.board-layout-top a[href*="/member/"], .board-layout-bottom a[href*="/member/"], [class*="player"] a[href*="/member/"]').forEach((a) => add((a.getAttribute('href').match(/\/member\/([\w-]+)/) || [])[1]));
-    return { id, type, users: users.slice(0, 6), url: location.href };
+    // Lado do jogador: o site mostra o tabuleiro invertido ("flipped") quando você joga de pretas,
+    // e o seu nome fica na barra de baixo
+    const board = document.querySelector('wc-chess-board#board-single, wc-chess-board, chess-board');
+    const orientation = board && board.classList.contains('flipped') ? 'b' : 'w';
+    const bottom = document.querySelector('#board-layout-player-bottom, .board-layout-bottom, .player-bottom');
+    let me = null;
+    if (bottom) {
+      const el = bottom.querySelector('[data-test-element="user-tagline-username"], .user-tagline-username, .cc-user-username-component, a[href*="/member/"]');
+      const href = el && el.getAttribute('href');
+      me = ((href && (href.match(/\/member\/([\w-]+)/) || [])[1]) || (el && el.textContent) || '').trim().toLowerCase() || null;
+      if (me && !/^[a-z0-9_-]{3,25}$/.test(me)) me = null;
+      if (me && !users.includes(me)) users.unshift(me);
+    }
+    return { id, type, users: users.slice(0, 6), url: location.href, orientation, me };
   }
 
   function boardEl() {
