@@ -11,11 +11,7 @@
   position: fixed; right: 18px; bottom: 18px; z-index: 2147483000; width: auto !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 3px 0 #b7841f !important;
 }
-#lc-overlay {
-  position: fixed; z-index: 2147483646; border-radius: 8px; overflow: hidden;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); animation: lc-fade 0.15s ease-out;
-}
-#lc-overlay iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
-/* Sem área identificável (ou tela estreita): janela quase em tela cheia */
-#lc-overlay.lc-full { inset: 16px; }
+.lc-ov { position: fixed; z-index: 2147483646; animation: lc-fade 0.15s ease-out; pointer-events: auto; }
+#lc-ov-side { border-radius: 8px; overflow: hidden; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4); }
+.lc-ov iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: dark; }
 @keyframes lc-fade { from { opacity: 0; } to { opacity: 1; } }

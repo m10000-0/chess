@@ -123,3 +123,16 @@ body.embedded .controls .btn.wide { flex: 2.2; font-size: 13px; white-space: now
 body.embedded .player { padding: 0 2px; }
 body.embedded #app.solid { background: var(--bg); border-radius: 8px; }
 body.embedded #app.solid .topbar { border-radius: 8px 8px 0 0; }
+
+/* ---------- Dois painéis: tabuleiro e coluna ---------- */
+body.role-board, body.role-side { background: transparent; }
+body.role-board #app { height: 100%; }
+body.role-board .bv { height: 100vh; width: 100vw; display: flex; justify-content: flex-end; }
+body.role-board .boardrow { height: 100vh; width: 100vw; justify-content: flex-end; gap: 0; }
+body.role-board .board-wrap { width: 100vh; height: 100vh; flex: none; }
+body.role-board .board { border-radius: 0; }
+/* barra de avaliação ocupa a faixa à esquerda do tabuleiro (se houver) */
+body.role-board .evalv { flex: 1; height: 100vh; margin-right: var(--eval-gap, 6px); border-radius: 3px; max-width: 40px; }
+@media (max-aspect-ratio: 104/100) { body.role-board .evalv { display: none; } }
+body.role-side .review { display: block; height: 100%; padding: 0; }
+body.role-side .side { height: 100%; border-radius: 8px; }

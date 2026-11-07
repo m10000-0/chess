@@ -1,6 +1,6 @@
 # Extensão: Revisão Lance Certo
 
-Adiciona um botão **"♞ Revisão Lance Certo"** logo acima do botão de revisão nas partidas **terminadas** do chess.com. O botão herda o estilo da página. Ao clicar (ou ao clicar no ícone da extensão), o painel de revisão aparece **exatamente sobre o tabuleiro e a coluna da direita**, e o resto do site continua visível:
+Adiciona um botão **"♞ Revisão Lance Certo"** logo acima do botão de revisão nas partidas **terminadas** do chess.com. O botão herda o estilo da página. Ao clicar (ou ao clicar no ícone da extensão), a revisão aparece em **dois painéis encaixados nos elementos do site**: um exatamente sobre o tabuleiro (com a barra de avaliação) e outro sobre a coluna lateral. Eles acompanham rolagem, redimensionamento e o layout de tela estreita, e as barras dos jogadores e o resto do site continuam visíveis:
 
 - classificação de cada lance: **Brilhante, Ótimo, Melhor, Excelente, Bom, Teoria, Forçado, Imprecisão, Erro, Oportunidade perdida e Capivarada**;
 - precisão de cada jogador, contagem por categoria e gráfico de avaliação clicável;

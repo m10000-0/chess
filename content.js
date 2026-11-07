@@ -54,7 +54,7 @@
       if (el.dataset.lcSeen || el.classList.contains('lc-review-btn')) continue;
       const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
       if (!text || text.length > 40 || !LABEL_RE.test(text)) continue;
-      if (el.closest('#lc-overlay') || !nearBoard(el)) continue;
+      if (el.closest('.lc-ov') || !nearBoard(el)) continue;
       el.dataset.lcSeen = '1';
       el.parentNode.insertBefore(makeButton(el), el);
       injected = true;
@@ -69,71 +69,84 @@
     } else if (floating && injected) floating.remove();
   }
 
-  // Área a cobrir: tabuleiro (com barras dos jogadores) + coluna direita
-  function targetArea() {
-    const main = document.querySelector('#board-layout-main, .board-layout-main') || boardEl();
+  // ---------- Dois overlays: um sobre o tabuleiro, outro sobre a coluna ----------
+  const visible = (r) => r && r.width > 40 && r.height > 40 && r.bottom > 0 && r.right > 0 && r.left < innerWidth && r.top < innerHeight;
+
+  // Tabuleiro (casas) + faixa da barra de avaliação à esquerda, se existir
+  function boardArea() {
+    const board = document.querySelector('wc-chess-board#board-single, #board-layout-chessboard wc-chess-board, wc-chess-board, chess-board');
+    if (!board) return null;
+    const b = board.getBoundingClientRect();
+    if (!visible(b)) return null;
+    let left = b.left;
+    const ev = document.querySelector('#board-layout-evaluation');
+    if (ev) {
+      const e = ev.getBoundingClientRect();
+      if (e.width > 4 && e.right <= b.left + 2 && b.left - e.left < 80 && e.bottom > b.top && e.top < b.bottom) left = e.left;
+    }
+    return { left, top: b.top, width: b.right - left, height: b.height, board: b };
+  }
+
+  // Coluna da direita (ou abaixo, em telas estreitas); se não houver, cria uma área ao lado do tabuleiro
+  function sideArea(ba) {
     const side = document.querySelector('#board-layout-sidebar, .board-layout-sidebar');
-    if (!main) return null;
-    const m = main.getBoundingClientRect();
-    if (m.width < 200 || m.height < 200) return null;
-    // Espaço para a barra de avaliação à esquerda do tabuleiro (como no site), se houver
-    const EVAL = m.left > 40 ? 30 : 0;
-    let left = m.left - EVAL, top = m.top, right = m.right, bottom = m.bottom, sideW = 0, gap = 0;
     if (side) {
-      const sr = side.getBoundingClientRect();
-      if (sr.width > 150 && sr.left >= m.right - 5) {
-        gap = Math.max(0, sr.left - m.right);
-        right = sr.right;
-        top = Math.min(top, sr.top);
-        bottom = Math.max(bottom, sr.bottom);
-        sideW = sr.width;
+      const r = side.getBoundingClientRect();
+      if (r.width > 150 && r.height > 120 && r.right > 0 && r.left < innerWidth) {
+        const top = Math.max(r.top, 8);
+        const bottom = Math.min(r.bottom, innerHeight - 8);
+        if (bottom - top > 200) return { left: r.left, top, width: r.width, height: bottom - top };
       }
     }
-    if (!sideW) { sideW = Math.min(420, Math.max(320, window.innerWidth - right - 24)); gap = 16; right = Math.min(window.innerWidth - 8, right + gap + sideW); }
-    return { left, top, width: right - left, height: Math.max(bottom - top, 480), layout: { mainW: Math.round(m.width + EVAL), sideW: Math.round(right - m.right - gap), gap: Math.round(gap) } };
+    if (!ba) return null;
+    const free = innerWidth - ba.board.right - 16;
+    if (free >= 320) return { left: ba.board.right + 16, top: ba.top, width: Math.min(440, free - 8), height: Math.max(ba.height, 420) };
+    // Sem espaço ao lado: painel na parte de baixo da tela
+    return { left: 8, top: Math.max(innerHeight * 0.45, 8), width: innerWidth - 16, height: innerHeight * 0.55 - 8 };
   }
 
-  let posTimer = null, lastLayout = '';
+  let posTimer = null;
+  const setBox = (el, r) => {
+    if (!el) return;
+    if (!r) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    Object.assign(el.style, { left: r.left + 'px', top: r.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+  };
   function place() {
-    const ov = document.getElementById('lc-overlay');
-    if (!ov) return;
-    const a = targetArea();
-    if (!a || window.innerWidth < 760) {
-      ov.classList.add('lc-full');
-      ov.removeAttribute('style');
-      return;
-    }
-    ov.classList.remove('lc-full');
-    Object.assign(ov.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px' });
-    const key = JSON.stringify(a.layout);
-    if (key !== lastLayout) {
-      lastLayout = key;
-      ov.querySelector('iframe')?.contentWindow?.postMessage({ type: 'lc-layout', layout: a.layout }, EXT_ORIGIN);
-    }
+    const bo = document.getElementById('lc-ov-board'), so = document.getElementById('lc-ov-side');
+    if (!bo && !so) return;
+    const ba = boardArea();
+    setBox(bo, ba);
+    setBox(so, sideArea(ba) || { left: 16, top: 16, width: innerWidth - 32, height: innerHeight - 32 });
   }
 
-  function openReview() {
-    if (document.getElementById('lc-overlay')) return;
-    const info = gameInfo();
-    const a = targetArea();
-    info.layout = a ? a.layout : null;
-    lastLayout = JSON.stringify(info.layout);
+  function overlay(id, info) {
     const ov = document.createElement('div');
-    ov.id = 'lc-overlay';
+    ov.id = id;
+    ov.className = 'lc-ov';
     const fr = document.createElement('iframe');
     fr.src = chrome.runtime.getURL('review.html') + '#' + encodeURIComponent(JSON.stringify(info));
     fr.allow = 'clipboard-write';
     ov.append(fr);
     document.documentElement.append(ov);
+    return fr;
+  }
+
+  function openReview() {
+    if (document.getElementById('lc-ov-side')) return;
+    const info = gameInfo();
+    const channel = 'lc-' + Math.random().toString(36).slice(2);
+    overlay('lc-ov-board', { role: 'board', channel });
+    const side = overlay('lc-ov-side', { ...info, role: 'side', channel });
     place();
     window.addEventListener('resize', place);
     window.addEventListener('scroll', place, true);
-    posTimer = setInterval(place, 500);
-    fr.focus();
+    posTimer = setInterval(place, 300);
+    side.focus();
   }
 
   function closeReview() {
-    document.getElementById('lc-overlay')?.remove();
+    document.querySelectorAll('.lc-ov').forEach((e) => e.remove());
     window.removeEventListener('resize', place);
     window.removeEventListener('scroll', place, true);
     clearInterval(posTimer);

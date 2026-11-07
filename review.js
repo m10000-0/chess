@@ -34,6 +34,10 @@ function toast(msg, ms = 2600) {
 }
 const badge = (cls, small = false) => h('span', { class: 'badge' + (small ? ' small' : ''), style: `background:${CLASSES[cls].color}`, title: CLASSES[cls].label }, CLASSES[cls].sym);
 
+// Papel deste iframe: 'board' (overlay sobre o tabuleiro), 'side' (overlay sobre a coluna) ou nenhum (aba própria)
+const role = info.role || null;
+const channel = info.channel ? new BroadcastChannel(info.channel) : null;
+
 // Modo embutido: o painel ocupa exatamente o tabuleiro + coluna direita do chess.com
 function applyLayout(l) {
   if (!l) return;
@@ -44,6 +48,7 @@ function applyLayout(l) {
 }
 if (inFrame) {
   document.body.classList.add('embedded');
+  if (role) document.body.classList.add('role-' + role);
   applyLayout(info.layout);
   window.addEventListener('message', (e) => { if (e.data && e.data.type === 'lc-layout') applyLayout(e.data.layout); });
 }
@@ -146,6 +151,48 @@ function startFromApi(g) {
   start(g.pgn, { white: g.white, black: g.black, url: g.url });
 }
 
+// ---------- tabuleiro + barra de avaliação ----------
+class BoardDisplay {
+  constructor(orientation = 'w') {
+    this.boardWrap = h('div', { class: 'board-wrap' });
+    this.board = new Board(this.boardWrap, { orientation });
+    this.board.movable = null;
+    this.evalWhite = h('div', { class: 'white' });
+    this.evalNum = h('div', { class: 'num' });
+    this.evalBar = h('div', { class: 'evalv' }, this.evalWhite, this.evalNum);
+    this.el = h('div', { class: 'boardrow' }, this.evalBar, this.boardWrap);
+  }
+
+  // st: { fen, last: {from,to}|null, arrows, badge: {to, cls}|null, evalPct, evalText, orientation }
+  show(st) {
+    const b = this.board;
+    if (st.orientation && b.opts.orientation !== st.orientation) b.setOrientation(st.orientation);
+    const c = new Chess(st.fen);
+    b.setPosition(c, { lastMove: st.last, check: c.inCheck() ? c.kingSquare(c.turn) : null });
+    b.setArrows(st.arrows || []);
+    b.root.querySelectorAll('.board-badge').forEach((e) => e.remove());
+    if (st.badge && CLASSES[st.badge.cls]) {
+      const v = b.viewIndex(st.badge.to);
+      b.root.append(h('div', { class: 'board-badge', style: `left:${(v & 7) * 12.5}%;top:${(v >> 3) * 12.5}%` }, badge(st.badge.cls)));
+    }
+    const pct = st.evalPct ?? 50;
+    this.evalBar.classList.toggle('flipped', b.opts.orientation === 'b');
+    this.evalWhite.style.height = pct + '%';
+    this.evalNum.textContent = st.evalText || '';
+    const whiteAhead = pct >= 50;
+    const atBottom = (b.opts.orientation === 'w') === whiteAhead;
+    this.evalNum.style.top = atBottom ? 'auto' : '4px';
+    this.evalNum.style.bottom = atBottom ? '4px' : 'auto';
+    this.evalNum.style.color = whiteAhead ? '#1b1d22' : '#f2f2ee';
+    if (!document.body.classList.contains('role-board')) this.evalBar.style.height = getComputedStyle(this.boardWrap).width;
+  }
+}
+
+// No modo de dois painéis, a coluna envia o estado do tabuleiro para o outro iframe
+class RemoteDisplay {
+  show(st) { this.last = st; channel.postMessage({ type: 'state', st }); }
+}
+
 // ---------- revisão ----------
 let current = null; // controla a análise em andamento
 
@@ -194,12 +241,7 @@ class Review {
     const res = this.game.headers.Result;
     const title = `${this.white.name} vs ${this.black.name} · ${res}${this.opening ? ' · ' + this.opening : ''}`;
     app.innerHTML = '';
-    this.boardWrap = h('div', { class: 'board-wrap' });
-    this.board = new Board(this.boardWrap, { orientation: this.orientation });
-    this.board.movable = null;
-    this.evalWhite = h('div', { class: 'white' });
-    this.evalNum = h('div', { class: 'num' });
-    this.evalBar = h('div', { class: 'evalv' }, this.evalWhite, this.evalNum);
+    this.display = role === 'side' ? new RemoteDisplay() : new BoardDisplay(this.orientation);
     this.topPlayer = h('div', { class: 'player' });
     this.bottomPlayer = h('div', { class: 'player' });
     this.coach = h('div', { class: 'card' });
@@ -220,7 +262,7 @@ class Review {
       h('button', { class: 'btn', title: 'Anterior (←)', onclick: () => this.go(this.cur - 1) }, '◀'),
       h('button', { class: 'btn', title: 'Próximo (→)', onclick: () => this.go(this.cur + 1) }, '▶'),
       h('button', { class: 'btn', title: 'Fim (End)', onclick: () => this.go(this.plies.length) }, '⏭'),
-      h('button', { class: 'btn', title: 'Virar tabuleiro', onclick: () => { this.orientation = this.orientation === 'w' ? 'b' : 'w'; this.board.setOrientation(this.orientation); this.render(); } }, '⇅'),
+      h('button', { class: 'btn', title: 'Virar tabuleiro', onclick: () => this.flip() }, '⇅'),
       h('button', { class: 'btn wide', title: 'Próximo erro', onclick: () => this.nextMistake() }, '⚠ Próx. erro'),
     );
     const settings = h('div', { class: 'card' }, h('details', {},
@@ -235,13 +277,13 @@ class Review {
     ));
     const boardcol = h('div', { class: 'boardcol' },
       this.topPlayer,
-      h('div', { class: 'boardrow' }, this.evalBar, this.boardWrap),
+      this.display.el,
       this.bottomPlayer,
       inFrame ? null : controls,
     );
     if (inFrame) {
       app.append(h('div', { class: 'review' },
-        boardcol,
+        role === 'side' ? null : boardcol,
         h('div', { class: 'side' },
           h('div', { class: 'sidehead' },
             h('span', { class: 'brand-mark' }, '♞'),
@@ -327,44 +369,40 @@ class Review {
     return m ? c.san(m) : uci;
   }
 
+  flip() {
+    this.orientation = this.orientation === 'w' ? 'b' : 'w';
+    this.render();
+  }
+
+  boardState() {
+    const k = this.cur;
+    const last = this.plies[k - 1];
+    const r = this.results[k - 1];
+    const arrows = [];
+    // Seta do melhor lance que deveria ter sido jogado
+    if (this.showBest && r && !r.isBest && r.bestUci && !['book', 'forced'].includes(r.cls)) arrows.push([r.bestUci.slice(0, 2), r.bestUci.slice(2, 4), 'green']);
+    const ev = this.evals[k];
+    const turn = this.fens[k].split(' ')[1];
+    return {
+      fen: this.fens[k],
+      last: last ? { from: last.from, to: last.to } : null,
+      arrows,
+      badge: r && last ? { to: last.to, cls: r.cls } : null,
+      evalPct: ev ? whiteWin(ev.score, turn) : 50,
+      evalText: ev ? scoreText(ev.score, turn).replace(/^\+/, '') : '',
+      orientation: this.orientation,
+    };
+  }
+
   render() {
     const k = this.cur;
-    const c = new Chess(this.fens[k]);
-    const last = this.plies[k - 1];
-    this.board.setPosition(c, { lastMove: last ? { from: last.from, to: last.to } : null, check: c.inCheck() ? c.kingSquare(c.turn) : null });
-    const r = this.results[k - 1];
-    // Seta do melhor lance que deveria ter sido jogado
-    const arrows = [];
-    if (this.showBest && r && !r.isBest && r.bestUci && !['book', 'forced'].includes(r.cls)) arrows.push([r.bestUci.slice(0, 2), r.bestUci.slice(2, 4), 'green']);
-    this.board.setArrows(arrows);
-    this.board.root.querySelectorAll('.board-badge').forEach((e) => e.remove());
-    if (r && last) {
-      const v = this.board.viewIndex(last.to);
-      this.board.root.append(h('div', { class: 'board-badge', style: `left:${(v & 7) * 12.5}%;top:${(v >> 3) * 12.5}%` }, badge(r.cls)));
-    }
-    this.renderEval(k);
-    this.renderPlayers();
+    this.display.show(this.boardState());
+    if (role !== 'side') this.renderPlayers();
     this.renderProgress();
     this.renderCoach(k);
     this.renderGraph();
     this.renderSummary();
     this.renderMoves();
-  }
-
-  renderEval(k) {
-    const ev = this.evals[k];
-    const turn = this.fens[k].split(' ')[1];
-    const pct = ev ? whiteWin(ev.score, turn) : 50;
-    this.evalBar.classList.toggle('flipped', this.orientation === 'b');
-    this.evalWhite.style.height = pct + '%';
-    const txt = ev ? scoreText(ev.score, turn).replace(/^\+/, '') : '';
-    this.evalNum.textContent = txt;
-    const whiteAhead = pct >= 50;
-    const atBottom = (this.orientation === 'w') === whiteAhead;
-    this.evalNum.style.top = atBottom ? 'auto' : '4px';
-    this.evalNum.style.bottom = atBottom ? '4px' : 'auto';
-    this.evalNum.style.color = whiteAhead ? '#1b1d22' : '#f2f2ee';
-    this.evalBar.style.height = getComputedStyle(this.boardWrap).width;
   }
 
   renderPlayers() {
@@ -488,8 +526,39 @@ class Review {
   }
 }
 
+// ---------- comunicação entre os dois painéis ----------
+function navKey(key) {
+  const r = current;
+  if (!r) return;
+  if (key === 'ArrowLeft') r.go(r.cur - 1);
+  else if (key === 'ArrowRight') r.go(r.cur + 1);
+  else if (key === 'Home') r.go(0);
+  else if (key === 'End') r.go(r.plies.length);
+}
+
+function startBoardRole() {
+  // Overlay do tabuleiro: só exibe o que a coluna mandar
+  app.innerHTML = '';
+  const d = new BoardDisplay('w');
+  app.append(h('div', { class: 'bv' }, d.el));
+  d.show({ fen: START_FEN, evalPct: 50, evalText: '' });
+  channel.onmessage = (e) => { if (e.data?.type === 'state') d.show(e.data.st); };
+  channel.postMessage({ type: 'hello' });
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { channel.postMessage({ type: 'nav', key: e.key }); e.preventDefault(); }
+  });
+}
+
+if (role === 'side' && channel) {
+  channel.onmessage = (e) => {
+    if (e.data?.type === 'nav') navKey(e.data.key);
+    else if (e.data?.type === 'hello' && current?.display?.last) current.display.show(current.display.last);
+  };
+}
+
 // ---------- início ----------
 (async () => {
+  if (role === 'board' && channel) { startBoardRole(); return; }
   const s = await storage.get();
   if (info.pgn) { start(info.pgn, {}); return; }
   if (!info.id && !s.username) { formScreen(info.url ? 'Não identifiquei a partida nesta página. Informe seu usuário para revisar sua última partida, ou cole o PGN.' : ''); return; }
