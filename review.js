@@ -1,6 +1,6 @@
 // Tela de revisão: busca a partida, roda o motor em cada posição, classifica os lances e mostra tudo.
 import { Chess, START_FEN } from './lib/chess.js';
-import { Board, setPieceSet, getPieceSet, pieceUrl, PIECE_SETS } from './lib/board.js';
+import { Board, setPieceSet, getPieceSet, pieceUrl, PIECE_SETS, setSiteTemplate, hasSiteTemplate } from './lib/board.js';
 import { parsePgn } from './pgn.js';
 import { identifyOpening } from './openings.js';
 import { CLASSES, CLASS_ORDER, classify, summarize, scoreText, whiteWin } from './analysis.js';
@@ -54,6 +54,15 @@ const badge = (cls, small = false) => h('span', {
   html: `<svg viewBox="0 0 20 20" width="100%" height="100%"><circle cx="10" cy="10" r="10" fill="${CLASSES[cls].color}"/>${ICONS[cls] || ''}</svg>`,
 });
 
+// Tema do chess.com lido da página (só funciona para uso no próprio navegador do usuário)
+const siteTheme = info.theme || null;
+setSiteTemplate(siteTheme?.pieces);
+function applyBoardImage(url) {
+  document.documentElement.classList.toggle('site-board', !!url);
+  document.documentElement.style.setProperty('--board-img', url ? `url("${url}")` : 'none');
+}
+applyBoardImage(siteTheme?.board);
+
 // Papel deste iframe: 'board' (overlay sobre o tabuleiro), 'side' (overlay sobre a coluna) ou nenhum (aba própria)
 const role = info.role || null;
 const channel = info.channel ? new BroadcastChannel(info.channel) : null;
@@ -73,7 +82,7 @@ if (inFrame) {
   window.addEventListener('message', (e) => { if (e.data && e.data.type === 'lc-layout') applyLayout(e.data.layout); });
 }
 
-const DEFAULTS = { username: '', depth: 16, engine: 'stockfish', pieceSet: 'gioco' };
+const DEFAULTS = { username: '', depth: 16, engine: 'stockfish', pieceSet: 'site' };
 const storage = {
   async get() {
     try {
@@ -186,7 +195,14 @@ class BoardDisplay {
   // st: { fen, last: {from,to}|null, arrows, badge: {to, cls}|null, evalPct, evalText, orientation }
   show(st) {
     const b = this.board;
-    if (st.pieceSet && st.pieceSet !== getPieceSet()) { setPieceSet(st.pieceSet); b.repaint(); }
+    if (st.theme !== undefined && JSON.stringify(st.theme) !== this.themeKey) {
+      this.themeKey = JSON.stringify(st.theme);
+      setSiteTemplate(st.theme?.pieces);
+      applyBoardImage(st.pieceSet === 'site' ? st.theme?.board : null);
+      setPieceSet(st.pieceSet);
+      b.repaint();
+    }
+    if (st.pieceSet && st.pieceSet !== getPieceSet()) { setPieceSet(st.pieceSet); applyBoardImage(st.pieceSet === 'site' ? st.theme?.board : null); b.repaint(); }
     if (st.orientation && b.opts.orientation !== st.orientation) b.setOrientation(st.orientation);
     const c = new Chess(st.fen);
     b.setPosition(c, { lastMove: st.last, check: c.inCheck() ? c.kingSquare(c.turn) : null });
@@ -250,7 +266,8 @@ class Review {
     this.results = [];
     this.cur = this.plies.length;
     this.showBest = true;
-    setPieceSet(settings.pieceSet);
+    setPieceSet(settings.pieceSet === 'site' && !hasSiteTemplate() ? 'gioco' : settings.pieceSet);
+    if (getPieceSet() !== 'site') applyBoardImage(null);
     // Lado do jogador: como o site mostrava o tabuleiro; senão, pelo usuário salvo
     const u = (info.me || settings.username || '').toLowerCase();
     if (u && this.black.name.toLowerCase() === u) this.orientation = 'b';
@@ -278,8 +295,14 @@ class Review {
       [[10, 'Rápida (10)'], [14, 'Normal (14)'], [18, 'Profunda (18)'], [22, 'Máxima (22)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.depth }, l)));
     const engineSel = h('select', { onchange: async (e) => { await storage.set({ engine: e.target.value }); toast('Motor salvo. Clique em "Reanalisar".'); } },
       [['stockfish', 'Stockfish 18'], ['builtin', 'Motor Lance Certo (mais fraco)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.engine }, l)));
-    const setSel = h('select', { onchange: async (e) => { await storage.set({ pieceSet: e.target.value }); setPieceSet(e.target.value); if (this.display.board) this.display.board.repaint(); this.render(); } },
-      PIECE_SETS.map((v) => h('option', { value: v, selected: v === getPieceSet() }, v)));
+    const setSel = h('select', { onchange: async (e) => {
+      await storage.set({ pieceSet: e.target.value });
+      setPieceSet(e.target.value);
+      applyBoardImage(e.target.value === 'site' ? siteTheme?.board : null);
+      if (this.display.board) this.display.board.repaint();
+      this.render();
+    } },
+      (hasSiteTemplate() ? ['site', ...PIECE_SETS] : PIECE_SETS).map((v) => h('option', { value: v, selected: v === getPieceSet() }, v === 'site' ? 'Tema do chess.com' : v)));
     const userInp = h('input', { type: 'text', value: this.settings.username, placeholder: 'seu usuário', style: 'width:150px' });
     userInp.addEventListener('change', () => storage.set({ username: userInp.value.trim() }));
 
@@ -558,6 +581,7 @@ class Review {
       evalText: ev ? scoreText(ev.score, turn).replace(/^\+/, '') : '',
       orientation: this.orientation,
       pieceSet: getPieceSet(),
+      theme: siteTheme,
     };
   }
 

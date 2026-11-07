@@ -63,7 +63,7 @@ Conjuntos de peças (pasta `pieces/`, escolha nas configurações):
 | merida | Armando Hernandez Marroquin | GPLv2+ |
 | cburnett | Colin M.L. Burnett | GPLv2+ |
 
-O conjunto Neo do chess.com não está incluído porque é propriedade do chess.com (veja lichess-org/lila#3411). O gioco é o conjunto livre mais próximo dele.
+O conjunto Neo do chess.com não está incluído porque é propriedade do chess.com (veja lichess-org/lila#3411). A opção padrão, **"Tema do chess.com"**, usa no overlay as mesmas imagens de peças e tabuleiro que o seu navegador já carrega do chess.com, lidas da própria página no momento da revisão. Nada disso fica salvo na extensão. Se o tema não puder ser lido, a extensão usa o gioco, o conjunto livre mais próximo do Neo.
 
 Por causa da licença CC BY-NC-SA de alguns conjuntos, esta extensão é distribuída gratuitamente e não pode ser vendida.
 

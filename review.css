@@ -197,3 +197,8 @@ body.role-side .card { background: transparent; border: 0; box-shadow: none; pad
 .badge svg { display: block; }
 .board-badge .badge { border: 0; width: 44%; height: 44%; right: -10%; top: -10%; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4); }
 .m2 .fig { width: 21px; height: 21px; }
+
+/* Tabuleiro do tema do site: a imagem fica por baixo das casas */
+html.site-board .squares { background: var(--board-img) center / 100% 100% no-repeat; }
+html.site-board .sq.light, html.site-board .sq.dark { background: transparent; }
+html.site-board .sq.m-check { background: radial-gradient(circle, #ff5a4a 0%, rgba(255, 70, 60, 0.7) 35%, transparent 75%); }

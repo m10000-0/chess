@@ -33,7 +33,21 @@
       if (me && !/^[a-z0-9_-]{3,25}$/.test(me)) me = null;
       if (me && !users.includes(me)) users.unshift(me);
     }
-    return { id, type, users: users.slice(0, 6), url: location.href, orientation, me };
+    return { id, type, users: users.slice(0, 6), url: location.href, orientation, me, theme: siteTheme(board) };
+  }
+
+  // Tema do site (peças e tabuleiro que o seu navegador já carrega), para usar no overlay
+  function siteTheme(board) {
+    if (!board) return null;
+    let pieces = null, boardImg = null;
+    const urlOf = (el) => { const m = el && getComputedStyle(el).backgroundImage.match(/url\(["']?(https:[^"')]+)["']?\)/); return m ? m[1] : null; };
+    for (const el of board.querySelectorAll('.piece')) {
+      const u = urlOf(el);
+      const m = u && u.match(/^(.*\/)([wb])([pnbrqk])\.(png|svg|webp)(\?.*)?$/i);
+      if (m) { pieces = `${m[1]}{c}{t}.${m[4]}${m[5] || ''}`; break; }
+    }
+    boardImg = urlOf(board);
+    return pieces || boardImg ? { pieces, board: boardImg } : null;
   }
 
   function boardEl() {
