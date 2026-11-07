@@ -76,3 +76,50 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13.5px; }
   .side { overflow: visible; }
   .boardcol { --bsize: min(calc(100vw - 60px), 640px); }
 }
+
+/* ---------- Tabuleiro verde/creme e peças SVG ---------- */
+:root {
+  --sq-light: #ebecd0;
+  --sq-dark: #779556;
+  --sq-last: rgba(255, 255, 51, 0.48);
+}
+.piece { background-size: 100% 100%; background-repeat: no-repeat; background-position: center; text-shadow: none !important; font-size: 0 !important; }
+.piece.dragging { transform-origin: center; }
+.promo-btn .piece { background-size: 86%; }
+.board { border-radius: 3px; box-shadow: none; }
+.sq .coord { font-weight: 700; font-size: 2.3cqw; }
+.sq.light .coord { color: var(--sq-dark); }
+.sq.dark .coord { color: var(--sq-light); }
+
+/* ---------- Modo embutido (sobre o tabuleiro do chess.com) ---------- */
+body.embedded {
+  --bg: #2b2a27; --bg-2: #262421; --panel: #21201d; --panel-2: #3a3835; --line: #3d3b38;
+  --text: #f1f0ec; --muted: #a9a6a0;
+  background: #262421;
+}
+body.embedded .review {
+  padding: 0; gap: var(--gap, 32px);
+  grid-template-columns: var(--main-w, 760px) var(--side-w, 440px);
+  justify-content: start; align-items: stretch; height: 100%;
+}
+body.embedded .boardcol {
+  background: var(--bg); border-radius: 6px; padding: 6px 0;
+  --bsize: min(calc(100vh - 88px), calc(var(--main-w, 760px) - 30px));
+}
+body.embedded .boardrow { gap: 8px; }
+body.embedded .player { margin-left: 30px; }
+body.embedded .side { background: var(--bg-2); border-radius: 8px; padding: 0; gap: 0; overflow: hidden; display: flex; flex-direction: column; }
+body.embedded .side > .card { border: 0; border-radius: 0; background: transparent; border-bottom: 1px solid var(--line); padding: 12px 16px; }
+body.embedded .side .scroll { flex: 1; min-height: 0; overflow: auto; }
+body.embedded .side .moves { max-height: none; }
+body.embedded .sidehead { display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+body.embedded .sidehead .brand-mark { width: 30px; height: 30px; font-size: 20px; border-radius: 8px; }
+body.embedded .sidehead .t { font-weight: 800; }
+body.embedded .sidehead .g { color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+body.embedded .sidehead .close { margin-left: auto; width: 34px; height: 34px; border-radius: 8px; border: 0; background: var(--panel-2); color: var(--text); font-size: 18px; cursor: pointer; flex: none; }
+body.embedded .controls { padding: 10px 12px; background: var(--panel); border-top: 1px solid var(--line); }
+body.embedded .controls .btn { flex: 1; background: var(--panel-2); border: 0; min-width: 0; }
+body.embedded .controls .btn.wide { flex: 2.2; font-size: 13px; white-space: nowrap; }
+body.embedded .player { padding: 0 2px; }
+body.embedded #app.solid { background: var(--bg); border-radius: 8px; }
+body.embedded #app.solid .topbar { border-radius: 8px 8px 0 0; }

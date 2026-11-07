@@ -69,24 +69,74 @@
     } else if (floating && injected) floating.remove();
   }
 
+  // Área a cobrir: tabuleiro (com barras dos jogadores) + coluna direita
+  function targetArea() {
+    const main = document.querySelector('#board-layout-main, .board-layout-main') || boardEl();
+    const side = document.querySelector('#board-layout-sidebar, .board-layout-sidebar');
+    if (!main) return null;
+    const m = main.getBoundingClientRect();
+    if (m.width < 200 || m.height < 200) return null;
+    // Espaço para a barra de avaliação à esquerda do tabuleiro (como no site), se houver
+    const EVAL = m.left > 40 ? 30 : 0;
+    let left = m.left - EVAL, top = m.top, right = m.right, bottom = m.bottom, sideW = 0, gap = 0;
+    if (side) {
+      const sr = side.getBoundingClientRect();
+      if (sr.width > 150 && sr.left >= m.right - 5) {
+        gap = Math.max(0, sr.left - m.right);
+        right = sr.right;
+        top = Math.min(top, sr.top);
+        bottom = Math.max(bottom, sr.bottom);
+        sideW = sr.width;
+      }
+    }
+    if (!sideW) { sideW = Math.min(420, Math.max(320, window.innerWidth - right - 24)); gap = 16; right = Math.min(window.innerWidth - 8, right + gap + sideW); }
+    return { left, top, width: right - left, height: Math.max(bottom - top, 480), layout: { mainW: Math.round(m.width + EVAL), sideW: Math.round(right - m.right - gap), gap: Math.round(gap) } };
+  }
+
+  let posTimer = null, lastLayout = '';
+  function place() {
+    const ov = document.getElementById('lc-overlay');
+    if (!ov) return;
+    const a = targetArea();
+    if (!a || window.innerWidth < 760) {
+      ov.classList.add('lc-full');
+      ov.removeAttribute('style');
+      return;
+    }
+    ov.classList.remove('lc-full');
+    Object.assign(ov.style, { left: a.left + 'px', top: a.top + 'px', width: a.width + 'px', height: a.height + 'px' });
+    const key = JSON.stringify(a.layout);
+    if (key !== lastLayout) {
+      lastLayout = key;
+      ov.querySelector('iframe')?.contentWindow?.postMessage({ type: 'lc-layout', layout: a.layout }, EXT_ORIGIN);
+    }
+  }
+
   function openReview() {
     if (document.getElementById('lc-overlay')) return;
     const info = gameInfo();
+    const a = targetArea();
+    info.layout = a ? a.layout : null;
+    lastLayout = JSON.stringify(info.layout);
     const ov = document.createElement('div');
     ov.id = 'lc-overlay';
     const fr = document.createElement('iframe');
     fr.src = chrome.runtime.getURL('review.html') + '#' + encodeURIComponent(JSON.stringify(info));
     fr.allow = 'clipboard-write';
-    ov.addEventListener('click', (e) => { if (e.target === ov) closeReview(); });
     ov.append(fr);
     document.documentElement.append(ov);
-    document.documentElement.classList.add('lc-lock');
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    posTimer = setInterval(place, 500);
     fr.focus();
   }
 
   function closeReview() {
     document.getElementById('lc-overlay')?.remove();
-    document.documentElement.classList.remove('lc-lock');
+    window.removeEventListener('resize', place);
+    window.removeEventListener('scroll', place, true);
+    clearInterval(posTimer);
   }
 
   // Clique no ícone da extensão: abre o painel sobre a página

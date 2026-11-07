@@ -34,6 +34,20 @@ function toast(msg, ms = 2600) {
 }
 const badge = (cls, small = false) => h('span', { class: 'badge' + (small ? ' small' : ''), style: `background:${CLASSES[cls].color}`, title: CLASSES[cls].label }, CLASSES[cls].sym);
 
+// Modo embutido: o painel ocupa exatamente o tabuleiro + coluna direita do chess.com
+function applyLayout(l) {
+  if (!l) return;
+  const st = document.documentElement.style;
+  if (l.mainW) st.setProperty('--main-w', l.mainW + 'px');
+  if (l.sideW) st.setProperty('--side-w', l.sideW + 'px');
+  if (l.gap != null) st.setProperty('--gap', l.gap + 'px');
+}
+if (inFrame) {
+  document.body.classList.add('embedded');
+  applyLayout(info.layout);
+  window.addEventListener('message', (e) => { if (e.data && e.data.type === 'lc-layout') applyLayout(e.data.layout); });
+}
+
 const DEFAULTS = { username: '', depth: 14, engine: 'stockfish' };
 const storage = {
   async get() {
@@ -93,12 +107,14 @@ async function findGame({ id, users = [] }, savedUser) {
 // ---------- telas ----------
 function loadingScreen(text) {
   app.innerHTML = '';
+  app.classList.add('solid');
   app.append(topbar(), h('div', { class: 'center', style: 'text-align:center' }, h('div', { class: 'spinner' }), h('div', { class: 'muted' }, text)));
 }
 
 async function formScreen(message) {
   const s = await storage.get();
   app.innerHTML = '';
+  app.classList.add('solid');
   const user = h('input', { type: 'text', placeholder: 'seu usuário no chess.com', value: s.username, style: 'width:100%' });
   const pgn = h('textarea', { placeholder: '[Event "Live Chess"]\n...\n1. e4 e5 2. Nf3 ...' });
   app.append(topbar(), h('div', { class: 'center' },
@@ -198,41 +214,55 @@ class Review {
     const userInp = h('input', { type: 'text', value: this.settings.username, placeholder: 'seu usuário', style: 'width:150px' });
     userInp.addEventListener('change', () => storage.set({ username: userInp.value.trim() }));
 
-    app.append(
-      topbar(title),
-      h('div', { class: 'review' },
-        h('div', { class: 'boardcol' },
-          this.topPlayer,
-          h('div', { class: 'boardrow' }, this.evalBar, this.boardWrap),
-          this.bottomPlayer,
-          h('div', { class: 'controls' },
-            h('button', { class: 'btn', title: 'Início (Home)', onclick: () => this.go(0) }, '⏮'),
-            h('button', { class: 'btn', title: 'Anterior (←)', onclick: () => this.go(this.cur - 1) }, '◀'),
-            h('button', { class: 'btn', title: 'Próximo (→)', onclick: () => this.go(this.cur + 1) }, '▶'),
-            h('button', { class: 'btn', title: 'Fim (End)', onclick: () => this.go(this.plies.length) }, '⏭'),
-            h('button', { class: 'btn', title: 'Virar tabuleiro', onclick: () => { this.orientation = this.orientation === 'w' ? 'b' : 'w'; this.board.setOrientation(this.orientation); this.render(); } }, '⇅'),
-            h('button', { class: 'btn', title: 'Próximo erro', onclick: () => this.nextMistake() }, '⚠ Próximo erro'),
-          ),
-        ),
+    app.classList.remove('solid');
+    const controls = h('div', { class: 'controls' },
+      h('button', { class: 'btn', title: 'Início (Home)', onclick: () => this.go(0) }, '⏮'),
+      h('button', { class: 'btn', title: 'Anterior (←)', onclick: () => this.go(this.cur - 1) }, '◀'),
+      h('button', { class: 'btn', title: 'Próximo (→)', onclick: () => this.go(this.cur + 1) }, '▶'),
+      h('button', { class: 'btn', title: 'Fim (End)', onclick: () => this.go(this.plies.length) }, '⏭'),
+      h('button', { class: 'btn', title: 'Virar tabuleiro', onclick: () => { this.orientation = this.orientation === 'w' ? 'b' : 'w'; this.board.setOrientation(this.orientation); this.render(); } }, '⇅'),
+      h('button', { class: 'btn wide', title: 'Próximo erro', onclick: () => this.nextMistake() }, '⚠ Próx. erro'),
+    );
+    const settings = h('div', { class: 'card' }, h('details', {},
+      h('summary', {}, 'Configurações'),
+      h('div', { class: 'settings' },
+        h('label', {}, 'Profundidade', depthSel),
+        h('label', {}, 'Motor', engineSel),
+        h('label', {}, 'Seu usuário', userInp),
+        h('label', {}, 'Mostrar melhor lance', h('input', { type: 'checkbox', checked: this.showBest, onchange: (e) => { this.showBest = e.target.checked; this.render(); } })),
+        h('button', { class: 'btn', onclick: async () => { this.cancel(); const s = await storage.get(); const r = new Review(this.game, { white: { username: this.white.name, rating: this.white.elo }, black: { username: this.black.name, rating: this.black.elo } }, s); current = r; r.run(); } }, '↺ Reanalisar'),
+      ),
+    ));
+    const boardcol = h('div', { class: 'boardcol' },
+      this.topPlayer,
+      h('div', { class: 'boardrow' }, this.evalBar, this.boardWrap),
+      this.bottomPlayer,
+      inFrame ? null : controls,
+    );
+    if (inFrame) {
+      app.append(h('div', { class: 'review' },
+        boardcol,
         h('div', { class: 'side' },
+          h('div', { class: 'sidehead' },
+            h('span', { class: 'brand-mark' }, '♞'),
+            h('div', { style: 'min-width:0' }, h('div', { class: 't' }, 'Revisão Lance Certo'), h('div', { class: 'g' }, title)),
+            h('button', { class: 'close', title: 'Fechar (Esc)', onclick: close }, '×'),
+          ),
           this.progress,
           this.coach,
-          h('div', { class: 'card' }, this.graph),
-          this.summaryEl,
-          h('div', { class: 'card' }, this.movesEl),
-          h('div', { class: 'card' }, h('details', {},
-            h('summary', {}, 'Configurações'),
-            h('div', { class: 'settings' },
-              h('label', {}, 'Profundidade', depthSel),
-              h('label', {}, 'Motor', engineSel),
-              h('label', {}, 'Seu usuário', userInp),
-              h('label', {}, 'Mostrar melhor lance', h('input', { type: 'checkbox', checked: this.showBest, onchange: (e) => { this.showBest = e.target.checked; this.render(); } })),
-              h('button', { class: 'btn', onclick: async () => { this.cancel(); const s = await storage.get(); const r = new Review(this.game, { white: { username: this.white.name, rating: this.white.elo }, black: { username: this.black.name, rating: this.black.elo } }, s); current = r; r.run(); } }, '↺ Reanalisar'),
-            ),
-          )),
+          h('div', { class: 'scroll' },
+            h('div', { class: 'card' }, this.graph),
+            h('div', { class: 'card' }, this.movesEl),
+            this.summaryEl,
+            settings,
+          ),
+          controls,
         ),
-      ),
-    );
+      ));
+    } else {
+      app.append(topbar(title), h('div', { class: 'review' }, boardcol,
+        h('div', { class: 'side' }, this.progress, this.coach, h('div', { class: 'card' }, this.graph), this.summaryEl, h('div', { class: 'card' }, this.movesEl), settings)));
+    }
     document.onkeydown = (e) => {
       if (e.target.closest('input, textarea, select')) return;
       if (e.key === 'ArrowLeft') this.go(this.cur - 1);

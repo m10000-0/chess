@@ -1,6 +1,6 @@
 # Extensão: Revisão Lance Certo
 
-Adiciona um botão **"♞ Revisão Lance Certo"** logo acima do botão de revisão nas partidas **terminadas** do chess.com. O botão herda o estilo da página. Ao clicar, abre um painel por cima da página com a revisão completa:
+Adiciona um botão **"♞ Revisão Lance Certo"** logo acima do botão de revisão nas partidas **terminadas** do chess.com. O botão herda o estilo da página. Ao clicar (ou ao clicar no ícone da extensão), o painel de revisão aparece **exatamente sobre o tabuleiro e a coluna da direita**, e o resto do site continua visível:
 
 - classificação de cada lance: **Brilhante, Ótimo, Melhor, Excelente, Bom, Teoria, Forçado, Imprecisão, Erro, Oportunidade perdida e Capivarada**;
 - precisão de cada jogador, contagem por categoria e gráfico de avaliação clicável;
@@ -49,6 +49,8 @@ Casos especiais:
 A precisão usa a fórmula de "precisão por chance de vitória" popularizada pelo Lichess.
 
 ## Licenças
+
+As peças (pasta `pieces/`) são o conjunto **cburnett**, de Colin M.L. Burnett, sob licença GPLv2+ (o mesmo usado pelo Lichess e pela Wikipédia).
 
 O Stockfish (pasta `stockfish/`) é software livre sob a **GPL v3** (veja `stockfish/COPYING.txt`). Versão WASM de [stockfish.js](https://github.com/nmrugg/stockfish.js), pacote npm `stockfish@18.0.8`. Esta extensão não é afiliada ao chess.com.
 

@@ -11,12 +11,11 @@
   position: fixed; right: 18px; bottom: 18px; z-index: 2147483000; width: auto !important;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 3px 0 #b7841f !important;
 }
-#lc-overlay { position: fixed; inset: 0; z-index: 2147483646; background: rgba(8, 10, 16, 0.62); backdrop-filter: blur(2px); animation: lc-fade 0.15s ease-out; }
-#lc-overlay iframe {
-  position: absolute; inset: 24px; width: calc(100% - 48px); height: calc(100% - 48px);
-  border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; background: #121722;
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+#lc-overlay {
+  position: fixed; z-index: 2147483646; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45); animation: lc-fade 0.15s ease-out;
 }
-@media (max-width: 700px) { #lc-overlay iframe { inset: 0; width: 100%; height: 100%; border-radius: 0; } }
+#lc-overlay iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: transparent; color-scheme: normal; }
+/* Sem área identificável (ou tela estreita): janela quase em tela cheia */
+#lc-overlay.lc-full { inset: 16px; }
 @keyframes lc-fade { from { opacity: 0; } to { opacity: 1; } }
-html.lc-lock, html.lc-lock body { overflow: hidden !important; }
