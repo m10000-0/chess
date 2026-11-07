@@ -281,9 +281,11 @@ class Review {
       this.bottomPlayer,
       inFrame ? null : controls,
     );
-    if (inFrame) {
+    if (role === 'side') {
+      this.buildColumn(title, settings);
+    } else if (inFrame) {
       app.append(h('div', { class: 'review' },
-        role === 'side' ? null : boardcol,
+        boardcol,
         h('div', { class: 'side' },
           h('div', { class: 'sidehead' },
             h('span', { class: 'brand-mark' }, '♞'),
@@ -350,7 +352,9 @@ class Review {
   }
 
   go(k) {
-    this.cur = Math.max(0, Math.min(this.plies.length, k));
+    const n = Math.max(0, Math.min(this.plies.length, k));
+    if (n !== this.cur) this.hint = false;
+    this.cur = n;
     this.render();
   }
 
@@ -369,6 +373,139 @@ class Review {
     return m ? c.san(m) : uci;
   }
 
+  buildColumn(title, settings) {
+    this.column = true;
+    this.view = 'moves';
+    this.settingsEl = settings;
+    const btn = (cls, label, title, fn) => h('button', { class: cls, title, onclick: fn }, label);
+    this.playBtn = btn('nb', '▶', 'Reproduzir', () => this.togglePlay());
+    this.bubble = h('div', { class: 'bubble' });
+    this.bodyEl = h('div', { class: 'col-body' });
+    this.graph = h('div', { class: 'col-graph' });
+    this.bar = h('div', { class: 'col-progress' }, h('i'));
+    app.append(h('div', { class: 'col' },
+      h('div', { class: 'col-head' },
+        btn('ib', '←', 'Fechar (Esc)', close),
+        h('span', { class: 'brand-mark' }, '♞'),
+        h('div', { class: 'col-title' }, h('div', { class: 't' }, 'Revisão da Partida'), h('div', { class: 'g' }, title)),
+        btn('ib', '⚙', 'Configurações', () => this.setView(this.view === 'settings' ? 'moves' : 'settings')),
+      ),
+      h('div', { class: 'coachrow' }, h('div', { class: 'avatar' }, '♞'), this.bubble),
+      this.bar,
+      h('div', { class: 'actions' },
+        btn('act', '💡', 'Mostrar o melhor lance nesta posição', () => { this.hint = !this.hint; this.render(); }),
+        btn('act go', '➜', 'Próximo lance (→)', () => this.go(this.cur + 1)),
+      ),
+      this.bodyEl,
+      this.graph,
+      h('div', { class: 'nav5' },
+        btn('nb', '⏮', 'Início (Home)', () => this.go(0)),
+        btn('nb', '❮', 'Anterior (←)', () => this.go(this.cur - 1)),
+        this.playBtn,
+        btn('nb', '❯', 'Próximo (→)', () => this.go(this.cur + 1)),
+        btn('nb', '⏭', 'Fim (End)', () => this.go(this.plies.length)),
+      ),
+      h('div', { class: 'col-foot' },
+        btn('fb', '★ Resumo', 'Precisão e contagem de lances', () => this.setView(this.view === 'summary' ? 'moves' : 'summary')),
+        btn('fb', '⚠ Próximo erro', 'Ir para o próximo erro', () => this.nextMistake()),
+        btn('fb', '⇅ Virar', 'Virar tabuleiro', () => this.flip()),
+      ),
+    ));
+    this.setView('moves');
+  }
+
+  setView(v) {
+    this.view = v;
+    this.bodyEl.replaceChildren(v === 'summary' ? this.summaryEl : v === 'settings' ? this.settingsEl : this.movesEl);
+    this.movesEl.className = 'moves2';
+    this.summaryEl.className = 'col-summary';
+    this.render();
+  }
+
+  togglePlay() {
+    if (this.playing) { clearInterval(this.playing); this.playing = null; this.playBtn.textContent = '▶'; return; }
+    if (this.cur >= this.plies.length) this.go(0);
+    this.playBtn.textContent = '❚❚';
+    this.playing = setInterval(() => {
+      if (this.cur >= this.plies.length) { this.togglePlay(); return; }
+      this.go(this.cur + 1);
+    }, 1100);
+  }
+
+  renderColumn() {
+    const k = this.cur;
+    this.bar.style.display = this.done ? 'none' : '';
+    this.bar.firstChild.style.width = (this.progressPct || 0) + '%';
+    this.bar.title = this.progressText || '';
+    this.renderBubble(k);
+    this.renderGraph();
+    if (this.view === 'summary') this.renderSummary();
+    if (this.view === 'moves') this.renderMoves2();
+  }
+
+  renderBubble(k) {
+    const b = this.bubble;
+    if (k === 0) {
+      const sum = summarize(this.plies, this.results);
+      const acc = (c) => (sum[c].accuracy == null ? '–' : sum[c].accuracy.toFixed(1));
+      b.replaceChildren(
+        h('div', { class: 'bh' }, h('b', {}, this.done ? 'Revisão pronta!' : 'Analisando a partida…')),
+        h('div', { class: 'bt' }, this.done
+          ? `Precisão: ${this.white.name} ${acc('w')} · ${this.black.name} ${acc('b')}. Use ➜ para revisar lance a lance.`
+          : (this.progressText || 'Preparando o motor…')),
+        this.opening ? h('div', { class: 'bs' }, this.opening) : null,
+      );
+      return;
+    }
+    const p = this.plies[k - 1], r = this.results[k - 1], ev = this.evals[k];
+    if (!r || !ev) {
+      b.replaceChildren(h('div', { class: 'bh' }, h('b', {}, p.san)), h('div', { class: 'bt' }, 'Analisando este lance…'));
+      return;
+    }
+    const turn = this.fens[k].split(' ')[1];
+    const num = `${p.moveNumber}${p.color === 'w' ? '.' : '...'} `;
+    const subs = [];
+    const bestSan = r.bestUci ? this.sanOf(p.fenBefore, r.bestUci) : null;
+    if (!r.isBest && bestSan && !['book', 'forced'].includes(r.cls)) subs.push(`O melhor era ${bestSan}.`);
+    const before = this.evals[k - 1];
+    if (before?.score.mate > 0 && !(ev.score.mate < 0) && r.cls !== 'best') subs.push(`Havia mate em ${before.score.mate}.`);
+    const mover = p.color === 'w' ? 'As brancas' : 'As pretas', other = p.color === 'w' ? 'As pretas' : 'As brancas';
+    if (ev.score.mate < 0) subs.push(`${mover} têm mate em ${-ev.score.mate}.`);
+    else if (ev.score.mate > 0) subs.push(`${other} têm mate em ${ev.score.mate}.`);
+    if (r.cls === 'book' && this.opening) subs.push(this.opening);
+    b.replaceChildren(
+      h('div', { class: 'bh' }, badge(r.cls), h('b', { style: `color:${CLASSES[r.cls].color}` }, CLASSES[r.cls].label), h('span', { class: 'chip-eval' }, scoreText(ev.score, turn))),
+      h('div', { class: 'bt' }, CLASSES[r.cls].text(num + p.san)),
+      subs.length ? h('div', { class: 'bs' }, subs.join(' ')) : null,
+    );
+  }
+
+  renderMoves2() {
+    const el = this.movesEl;
+    const scroll = el.scrollTop;
+    el.replaceChildren();
+    const NOTABLE = ['brilliant', 'great', 'book', 'inaccuracy', 'mistake', 'miss', 'blunder'];
+    const cell = (i) => {
+      const p = this.plies[i];
+      if (!p) return h('span', { class: 'm2' });
+      const r = this.results[i];
+      const notable = r && NOTABLE.includes(r.cls);
+      const piece = /^[KQRBN]/.test(p.san) ? h('img', { class: 'fig ' + p.color, src: `pieces/${p.color}${p.san[0]}.svg`, alt: '' }) : null;
+      return h('span', { class: 'm2' + (this.cur === i + 1 ? ' cur' : ''), onclick: () => this.go(i + 1), style: notable && r.cls !== 'book' ? `color:${CLASSES[r.cls].color}` : null },
+        h('span', { class: 'bslot' }, notable ? badge(r.cls, true) : null), piece, piece ? p.san.slice(1) : p.san);
+    };
+    let i = 0, row = 0;
+    const addRow = (n, a, b) => el.append(h('div', { class: 'row2' + (row++ % 2 ? ' alt' : '') }, h('span', { class: 'n' }, n + '.'), a, b));
+    if (this.plies[0]?.color === 'b') { addRow(this.plies[0].moveNumber, h('span', { class: 'm2' }, '…'), cell(0)); i = 1; }
+    for (; i < this.plies.length; i += 2) addRow(this.plies[i].moveNumber, cell(i), cell(i + 1));
+    el.scrollTop = scroll;
+    const cur = el.querySelector('.m2.cur');
+    if (cur) {
+      const top = cur.parentElement.offsetTop;
+      if (top < el.scrollTop || top > el.scrollTop + el.clientHeight - 34) el.scrollTop = top - el.clientHeight / 2;
+    }
+  }
+
   flip() {
     this.orientation = this.orientation === 'w' ? 'b' : 'w';
     this.render();
@@ -382,6 +519,7 @@ class Review {
     // Seta do melhor lance que deveria ter sido jogado
     if (this.showBest && r && !r.isBest && r.bestUci && !['book', 'forced'].includes(r.cls)) arrows.push([r.bestUci.slice(0, 2), r.bestUci.slice(2, 4), 'green']);
     const ev = this.evals[k];
+    if (this.hint && ev?.best) arrows.push([ev.best.slice(0, 2), ev.best.slice(2, 4), 'blue']);
     const turn = this.fens[k].split(' ')[1];
     return {
       fen: this.fens[k],
@@ -397,6 +535,7 @@ class Review {
   render() {
     const k = this.cur;
     this.display.show(this.boardState());
+    if (this.column) { this.renderColumn(); return; }
     if (role !== 'side') this.renderPlayers();
     this.renderProgress();
     this.renderCoach(k);
