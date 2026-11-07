@@ -23,8 +23,17 @@
     return { id, type, users: users.slice(0, 6), url: location.href };
   }
 
-  function hasBoard() {
-    return !!document.querySelector('wc-chess-board, chess-board, .board, [class*="board-layout"]');
+  function boardEl() {
+    return document.querySelector('wc-chess-board, chess-board, #board-layout-chessboard, .board');
+  }
+  function hasBoard() { return !!boardEl(); }
+  // Ignora o menu lateral do site (fica à esquerda do tabuleiro); aceita o painel da partida
+  function nearBoard(el) {
+    const b = boardEl();
+    if (!b) return false;
+    const br = b.getBoundingClientRect(), r = el.getBoundingClientRect();
+    if (!r.width || !r.height) return false;
+    return r.right > br.left + 20;
   }
 
   function makeButton(base) {
@@ -39,25 +48,25 @@
   }
 
   function inject() {
-    if (!hasBoard()) return;
+    if (!hasBoard()) { document.querySelector('.lc-float')?.remove(); return; }
     let injected = !!document.querySelector('.lc-review-btn:not(.lc-float)');
     for (const el of document.querySelectorAll('button, a')) {
       if (el.dataset.lcSeen || el.classList.contains('lc-review-btn')) continue;
       const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
       if (!text || text.length > 40 || !LABEL_RE.test(text)) continue;
-      if (el.closest('nav, header, [class*="sidebar"], [class*="nav-"], #lc-overlay')) continue;
+      if (el.closest('#lc-overlay') || !nearBoard(el)) continue;
       el.dataset.lcSeen = '1';
       el.parentNode.insertBefore(makeButton(el), el);
       injected = true;
     }
-    // Botão flutuante nas páginas de partida, caso o botão original não seja encontrado
+    // Botão flutuante em qualquer página com tabuleiro (inclusive /play/online após a partida),
+    // caso o botão de revisão do site não seja encontrado
     const floating = document.querySelector('.lc-float');
-    const onGamePage = GAME_RE.test(location.pathname);
-    if (onGamePage && !injected && !floating) {
+    if (!injected && !floating) {
       const b = makeButton(null);
       b.classList.add('lc-float');
       document.body.append(b);
-    } else if (floating && (injected || !onGamePage)) floating.remove();
+    } else if (floating && injected) floating.remove();
   }
 
   function openReview() {
@@ -68,6 +77,7 @@
     const fr = document.createElement('iframe');
     fr.src = chrome.runtime.getURL('review.html') + '#' + encodeURIComponent(JSON.stringify(info));
     fr.allow = 'clipboard-write';
+    ov.addEventListener('click', (e) => { if (e.target === ov) closeReview(); });
     ov.append(fr);
     document.documentElement.append(ov);
     document.documentElement.classList.add('lc-lock');
@@ -78,6 +88,11 @@
     document.getElementById('lc-overlay')?.remove();
     document.documentElement.classList.remove('lc-lock');
   }
+
+  // Clique no ícone da extensão: abre o painel sobre a página
+  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+    if (msg && msg.type === 'lc-open') { openReview(); reply({ ok: true }); }
+  });
 
   window.addEventListener('message', (e) => {
     if (e.origin === EXT_ORIGIN && e.data && e.data.type === 'lc-close') closeReview();
