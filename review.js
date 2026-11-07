@@ -294,7 +294,7 @@ class Review {
     const depthSel = h('select', { onchange: async (e) => { await storage.set({ depth: +e.target.value }); toast('Profundidade salva. Clique em "Reanalisar".'); } },
       [[10, 'Rápida (10)'], [14, 'Normal (14)'], [18, 'Profunda (18)'], [22, 'Máxima (22)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.depth }, l)));
     const engineSel = h('select', { onchange: async (e) => { await storage.set({ engine: e.target.value }); toast('Motor salvo. Clique em "Reanalisar".'); } },
-      [['stockfish', 'Stockfish 18'], ['builtin', 'Motor Lance Certo (mais fraco)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.engine }, l)));
+      [['stockfish', 'Stockfish 19 Lite'], ['builtin', 'Motor Lance Certo (mais fraco)']].map(([v, l]) => h('option', { value: v, selected: v === this.settings.engine }, l)));
     const setSel = h('select', { onchange: async (e) => {
       await storage.set({ pieceSet: e.target.value });
       setPieceSet(e.target.value);
@@ -375,7 +375,7 @@ class Review {
     const N = this.plies.length;
     let engine;
     if (this.settings.engine !== 'builtin') {
-      try { engine = await new StockfishEngine('stockfish/stockfish-18-lite-single.js', this.settings.depth).init(); }
+      try { engine = await new StockfishEngine('stockfish/stockfish-19-lite-single.js', this.settings.depth).init(); }
       catch (e) { console.warn('Stockfish indisponível', e); toast('Stockfish indisponível: usando o motor interno.'); }
     }
     if (!engine) engine = await new BuiltinEngine('builtin-worker.js', 4).init();

@@ -5,7 +5,7 @@ export class StockfishEngine {
   constructor(url, depth = 14) {
     this.url = url;
     this.depth = depth;
-    this.name = 'Stockfish 18';
+    this.name = 'Stockfish 19 Lite';
   }
 
   init(timeoutMs = 10000) {

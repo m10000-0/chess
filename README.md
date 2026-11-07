@@ -8,7 +8,7 @@ Adiciona um botão **"♞ Revisão Lance Certo"** logo acima do botão de revis�
 - explicação de cada lance ("O melhor era…", "Havia mate em 2"), nome da abertura e botão "Próximo erro";
 - navegação pelas setas do teclado; **Esc** fecha o painel.
 
-A análise roda **no seu navegador** com o Stockfish 18 (WASM), sem limite de revisões e sem enviar nada a servidores. Se o Stockfish não carregar, a extensão usa automaticamente o motor interno do Lance Certo, que é mais fraco.
+A análise roda **no seu navegador** com o Stockfish 19 Lite (WASM), a mesma versão do painel de análise do chess.com, sem limite de revisões e sem enviar nada a servidores. Se o Stockfish não carregar, a extensão usa automaticamente o motor interno do Lance Certo, que é mais fraco.
 
 ## Instalar (Chrome, Edge, Brave ou Opera)
 
@@ -67,7 +67,7 @@ O conjunto Neo do chess.com não está incluído porque é propriedade do chess.
 
 Por causa da licença CC BY-NC-SA de alguns conjuntos, esta extensão é distribuída gratuitamente e não pode ser vendida.
 
-O Stockfish (pasta `stockfish/`) é software livre sob a **GPL v3** (veja `stockfish/COPYING.txt`). Versão WASM de [stockfish.js](https://github.com/nmrugg/stockfish.js), pacote npm `stockfish@18.0.8`. Esta extensão não é afiliada ao chess.com.
+O Stockfish (pasta `stockfish/`) é software livre sob a **GPL v3** (veja `stockfish/COPYING.txt`). Versão WASM de [stockfish.js](https://github.com/nmrugg/stockfish.js), pacote npm `stockfish@19.0.1`. Esta extensão não é afiliada ao chess.com.
 
 ## Desenvolvimento
 
