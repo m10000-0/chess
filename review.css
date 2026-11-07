@@ -202,3 +202,7 @@ body.role-side .card { background: transparent; border: 0; box-shadow: none; pad
 html.site-board .squares { background: var(--board-img) center / 100% 100% no-repeat; }
 html.site-board .sq.light, html.site-board .sq.dark { background: transparent; }
 html.site-board .sq.m-check { background: radial-gradient(circle, #ff5a4a 0%, rgba(255, 70, 60, 0.7) 35%, transparent 75%); }
+
+/* Saltos de vários lances: sem animação */
+.board.no-anim .piece { transition: none !important; animation: none !important; }
+.board.no-anim .piece.vanish { display: none; }

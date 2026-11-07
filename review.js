@@ -205,7 +205,7 @@ class BoardDisplay {
     if (st.pieceSet && st.pieceSet !== getPieceSet()) { setPieceSet(st.pieceSet); applyBoardImage(st.pieceSet === 'site' ? st.theme?.board : null); b.repaint(); }
     if (st.orientation && b.opts.orientation !== st.orientation) b.setOrientation(st.orientation);
     const c = new Chess(st.fen);
-    b.setPosition(c, { lastMove: st.last, check: c.inCheck() ? c.kingSquare(c.turn) : null });
+    b.setPosition(c, { lastMove: st.last, check: c.inCheck() ? c.kingSquare(c.turn) : null, animate: st.animate !== false });
     b.setArrows(st.arrows || []);
     b.root.querySelectorAll('.board-badge').forEach((e) => e.remove());
     if (st.badge && CLASSES[st.badge.cls]) {
@@ -399,10 +399,14 @@ class Review {
     engine.stop();
     this.done = true;
     this.elapsed = Math.round((Date.now() - t0) / 1000);
+    // Análise pronta: volta à posição inicial para revisar desde o começo
+    // (a menos que o usuário já esteja navegando pelos lances)
+    if (!this.navigated) { this.cur = 0; this.hint = false; }
     this.render();
   }
 
   go(k) {
+    this.navigated = true;
     const n = Math.max(0, Math.min(this.plies.length, k));
     if (n !== this.cur) this.hint = false;
     this.cur = n;
@@ -549,7 +553,7 @@ class Review {
     const addRow = (n, a, b) => el.append(h('div', { class: 'row2' + (row++ % 2 ? ' alt' : '') }, h('span', { class: 'n' }, n + '.'), a, b));
     if (this.plies[0]?.color === 'b') { addRow(this.plies[0].moveNumber, h('span', { class: 'm2' }, '…'), cell(0)); i = 1; }
     for (; i < this.plies.length; i += 2) addRow(this.plies[i].moveNumber, cell(i), cell(i + 1));
-    el.scrollTop = scroll;
+    el.scrollTop = this.cur === 0 ? 0 : scroll;
     const cur = el.querySelector('.m2.cur');
     if (cur) {
       const top = cur.parentElement.offsetTop;
@@ -582,12 +586,15 @@ class Review {
       orientation: this.orientation,
       pieceSet: getPieceSet(),
       theme: siteTheme,
+      // Só anima avanço/retrocesso de um lance; saltos maiores trocam direto
+      animate: this.shownPly == null || Math.abs(this.shownPly - k) <= 1,
     };
   }
 
   render() {
     const k = this.cur;
     this.display.show(this.boardState());
+    this.shownPly = k;
     if (this.column) { this.renderColumn(); return; }
     if (role !== 'side') this.renderPlayers();
     this.renderProgress();
